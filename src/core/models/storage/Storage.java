@@ -94,7 +94,7 @@ public class Storage {
         }
     }
 
-    // ── Users ──────────────────────────────────────────────────────────────
+    // ── Usuarios ──────────────────────────────────────────────────────────────
 
     public boolean addUser(User u) {
         for (User existing : this.users) {
@@ -131,7 +131,7 @@ public class Storage {
         return users;
     }
 
-    // ── Appointments ───────────────────────────────────────────────────────
+    // ── Citas ───────────────────────────────────────────────────────
 
     public boolean addAppointment(Appointment a) {
         for (Appointment existing : this.appointments) {
@@ -156,7 +156,7 @@ public class Storage {
         return appointments;
     }
 
-    // ── Hospitalizations ───────────────────────────────────────────────────
+    // ── Hospitalizacion ───────────────────────────────────────────────────
 
     public boolean addHospitalization(Hospitalization h) {
         for (Hospitalization existing : this.hospitalizations) {
@@ -181,7 +181,7 @@ public class Storage {
         return hospitalizations;
     }
 
-    // ── ID generation ──────────────────────────────────────────────────────
+    // ── creacion de ID ──────────────────────────────────────────────────────
 
     public String generateAppointmentId(long patientId) {
         int count = 0;

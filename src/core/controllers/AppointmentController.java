@@ -12,6 +12,7 @@ import core.models.Doctor;
 import core.models.Patient;
 import core.models.Specialty;
 import core.models.User;
+import core.models.Prescription;
 import core.models.storage.Storage;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,7 +32,7 @@ public class AppointmentController {
     public static Response requestAppointment(String patientId, String doctorId,
             String specialty, String date, String time, String reason, String type) {
 
-        // 1. Validate patientId
+        // 1. Validar id del paciente
         long parsedPatientId;
         try {
             parsedPatientId = Long.parseLong(patientId);
@@ -47,7 +48,7 @@ public class AppointmentController {
         }
         Patient patient = (Patient) patientUser;
 
-        // 2. Validate date
+        // 2. Validar fecha
         LocalDate parsedDate;
         try {
             parsedDate = LocalDate.parse(date);
@@ -55,7 +56,7 @@ public class AppointmentController {
             return new Response("Date must be in format YYYY-MM-DD", Status.BAD_REQUEST);
         }
 
-        // 3. Validate time: minutes must be 00, 15, 30 or 45
+        // 3. Validar tiempo: minutos tienen que ser 00, 15, 30 or 45
         LocalTime parsedTime;
         try {
             parsedTime = LocalTime.parse(time);
@@ -69,7 +70,7 @@ public class AppointmentController {
 
         LocalDateTime datetime = LocalDateTime.of(parsedDate, parsedTime);
 
-        // Validate specialty
+        // Validar especialidad
         Specialty parsedSpecialty;
         try {
             parsedSpecialty = Specialty.valueOf(specialty);
@@ -77,7 +78,7 @@ public class AppointmentController {
             return new Response("Invalid specialty value", Status.BAD_REQUEST);
         }
 
-        // Parse type
+        // Parse 
         boolean parsedType;
         if (type.equals("true")) {
             parsedType = true;
@@ -87,7 +88,7 @@ public class AppointmentController {
             return new Response("Type must be 'true' or 'false'", Status.BAD_REQUEST);
         }
 
-        // 4 & 5. Find doctor
+        // 4 & 5. encontrar doctor
         Doctor doctor = null;
 
         if (doctorId != null && !doctorId.isEmpty()) {
@@ -137,13 +138,13 @@ public class AppointmentController {
             }
         }
 
-        // 6. Generate ID and create appointment
+        // 6. Generar ID and crear cita
         String appointmentId = Storage.getInstance().generateAppointmentId(parsedPatientId);
 
         Appointment appointment = new Appointment(appointmentId, patient, doctor,
                 parsedSpecialty, datetime, reason, parsedType);
 
-        // 7. Register in patient, doctor and Storage
+        // 7. Registrar paciente, doctor y Storage
         patient.addAppointment(appointment);
         doctor.addAppointment(appointment);
         Storage.getInstance().addAppointment(appointment);
@@ -227,6 +228,161 @@ public class AppointmentController {
         HashMap<String, Object> data = new HashMap<>();
         data.put("appointments", list);
         return new Response("Appointments retrieved successfully", Status.OK, data);
+    }
+
+    public static Response acceptAppointment(String appointmentId, String doctorId) {
+        Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
+        if (appointment == null) {
+            return new Response("Appointment not found", Status.NOT_FOUND);
+        }
+        long parsedDoctorId;
+        try {
+            parsedDoctorId = Long.parseLong(doctorId);
+        } catch (NumberFormatException e) {
+            return new Response("Doctor ID must be a number", Status.BAD_REQUEST);
+        }
+        if (appointment.getDoctor().getId() != parsedDoctorId) {
+            return new Response("Doctor does not belong to this appointment", Status.BAD_REQUEST);
+        }
+        if (appointment.getStatus() != AppointmentStatus.REQUESTED) {
+            return new Response("Appointment must be in REQUESTED status", Status.BAD_REQUEST);
+        }
+        appointment.setStatus(AppointmentStatus.PENDING);
+        return new Response("Appointment accepted", Status.OK);
+    }
+
+    public static Response completeAppointment(String appointmentId, String doctorId) {
+        Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
+        if (appointment == null) {
+            return new Response("Appointment not found", Status.NOT_FOUND);
+        }
+        long parsedDoctorId;
+        try {
+            parsedDoctorId = Long.parseLong(doctorId);
+        } catch (NumberFormatException e) {
+            return new Response("Doctor ID must be a number", Status.BAD_REQUEST);
+        }
+        if (appointment.getDoctor().getId() != parsedDoctorId) {
+            return new Response("Doctor does not belong to this appointment", Status.BAD_REQUEST);
+        }
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            return new Response("Appointment must be in PENDING status", Status.BAD_REQUEST);
+        }
+        appointment.setStatus(AppointmentStatus.COMPLETED);
+        return new Response("Appointment completed", Status.OK);
+    }
+
+    public static Response cancelAppointment(String appointmentId, String patientId) {
+        Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
+        if (appointment == null) {
+            return new Response("Appointment not found", Status.NOT_FOUND);
+        }
+        long parsedPatientId;
+        try {
+            parsedPatientId = Long.parseLong(patientId);
+        } catch (NumberFormatException e) {
+            return new Response("Patient ID must be a number", Status.BAD_REQUEST);
+        }
+        if (appointment.getPatient().getId() != parsedPatientId) {
+            return new Response("Patient does not belong to this appointment", Status.BAD_REQUEST);
+        }
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+            return new Response("A completed appointment cannot be canceled", Status.BAD_REQUEST);
+        }
+        appointment.setStatus(AppointmentStatus.CANCELED);
+        return new Response("Appointment canceled", Status.OK);
+    }
+
+    public static Response rescheduleAppointment(String appointmentId, String doctorId,
+            String newTime, String additionalReason) {
+        Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
+        if (appointment == null) {
+            return new Response("Appointment not found", Status.NOT_FOUND);
+        }
+        long parsedDoctorId;
+        try {
+            parsedDoctorId = Long.parseLong(doctorId);
+        } catch (NumberFormatException e) {
+            return new Response("Doctor ID must be a number", Status.BAD_REQUEST);
+        }
+        if (appointment.getDoctor().getId() != parsedDoctorId) {
+            return new Response("Doctor does not belong to this appointment", Status.BAD_REQUEST);
+        }
+
+        LocalTime parsedNewTime;
+        try {
+            parsedNewTime = LocalTime.parse(newTime);
+        } catch (DateTimeParseException e) {
+            return new Response("Time must be in format HH:mm", Status.BAD_REQUEST);
+        }
+        int minutes = parsedNewTime.getMinute();
+        if (minutes != 0 && minutes != 15 && minutes != 30 && minutes != 45) {
+            return new Response("Minutes must be 00, 15, 30 or 45", Status.BAD_REQUEST);
+        }
+
+        LocalDate currentDate = appointment.getDatetime().toLocalDate();
+        LocalDateTime newDatetime = LocalDateTime.of(currentDate, parsedNewTime);
+
+        Doctor doctor = appointment.getDoctor();
+        for (Appointment a : doctor.getAppointments()) {
+            if (!a.getId().equals(appointmentId)
+                    && a.getDatetime().equals(newDatetime)
+                    && a.getStatus() != AppointmentStatus.CANCELED) {
+                return new Response("Doctor is not available at the requested time", Status.BAD_REQUEST);
+            }
+        }
+
+        appointment.setDatetime(newDatetime);
+
+        if (additionalReason != null && !additionalReason.isEmpty()) {
+            appointment.setReason(appointment.getReason() + " | " + additionalReason);
+        }
+
+        return new Response("Appointment rescheduled", Status.OK);
+    }
+
+    public static Response prescribeMedication(String appointmentId, String doctorId,
+            String medication, String dosage, String frequency) {
+        Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
+        if (appointment == null) {
+            return new Response("Appointment not found", Status.NOT_FOUND);
+        }
+        long parsedDoctorId;
+        try {
+            parsedDoctorId = Long.parseLong(doctorId);
+        } catch (NumberFormatException e) {
+            return new Response("Doctor ID must be a number", Status.BAD_REQUEST);
+        }
+        if (appointment.getDoctor().getId() != parsedDoctorId) {
+            return new Response("Doctor does not belong to this appointment", Status.BAD_REQUEST);
+        }
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            return new Response("Appointment must be accepted first", Status.BAD_REQUEST);
+        }
+        if (medication == null || medication.isEmpty()) {
+            return new Response("Medication name is required", Status.BAD_REQUEST);
+        }
+        if (dosage == null || dosage.isEmpty()) {
+            return new Response("Dosage is required", Status.BAD_REQUEST);
+        }
+        if (frequency == null || frequency.isEmpty()) {
+            return new Response("Frequency is required", Status.BAD_REQUEST);
+        }
+        double parsedDosage;
+        try {
+            parsedDosage = Double.parseDouble(dosage);
+        } catch (NumberFormatException e) {
+            return new Response("Dosage must be a number", Status.BAD_REQUEST);
+        }
+        int parsedFrequency;
+        try {
+            parsedFrequency = Integer.parseInt(frequency);
+        } catch (NumberFormatException e) {
+            return new Response("Frequency must be a number", Status.BAD_REQUEST);
+        }
+
+        new Prescription(appointment, medication, parsedDosage, "", 0, "", parsedFrequency);
+        return new Response("Medication prescribed", Status.CREATED);
     }
 
 }
