@@ -53,8 +53,8 @@ public class PatientController {
             return new Response("Passwords do not match", Status.BAD_REQUEST);
         }
 
-        if (!email.contains("@") || !email.endsWith(".com")) {
-            return new Response("Invalid email address", Status.BAD_REQUEST);
+        if (!email.matches("[^@]+@[^@]+\\.com")) {
+            return new Response("Email must follow the format XXXXX@XXXXX.com", Status.BAD_REQUEST);
         }
 
         LocalDate parsedBirthdate;
@@ -139,8 +139,8 @@ public class PatientController {
             return new Response("Passwords do not match", Status.BAD_REQUEST);
         }
 
-        if (!email.contains("@") || !email.endsWith(".com")) {
-            return new Response("Invalid email address", Status.BAD_REQUEST);
+        if (!email.matches("[^@]+@[^@]+\\.com")) {
+            return new Response("Email must follow the format XXXXX@XXXXX.com", Status.BAD_REQUEST);
         }
 
         LocalDate parsedBirthdate;

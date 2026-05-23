@@ -30,6 +30,7 @@ public class PatientView extends javax.swing.JFrame {
         loadUserData();
         loadDoctorComboBoxes();
         loadRoomTypeComboBox();
+        loadCancelComboBox();
     }
 
     private void loadUserData() {

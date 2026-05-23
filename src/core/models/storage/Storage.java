@@ -186,9 +186,8 @@ public class Storage {
     public String generateAppointmentId(long patientId) {
         int count = 0;
         if (appointmentCounters.containsKey(patientId)) {
-            count = appointmentCounters.get(patientId);
+            count = appointmentCounters.get(patientId) + 1;
         }
-        count++;
         appointmentCounters.put(patientId, count);
         return String.format("A-%d-%04d", patientId, count);
     }
@@ -196,9 +195,8 @@ public class Storage {
     public String generateHospitalizationId(long patientId) {
         int count = 0;
         if (hospitalizationCounters.containsKey(patientId)) {
-            count = hospitalizationCounters.get(patientId);
+            count = hospitalizationCounters.get(patientId) + 1;
         }
-        count++;
         hospitalizationCounters.put(patientId, count);
         return String.format("H-%d-%04d", patientId, count);
     }
