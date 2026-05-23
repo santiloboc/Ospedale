@@ -178,4 +178,5 @@ public class HospitalizationController {
         return new Response("Patient hospitalized successfully", Status.CREATED);
     }
 
+
 }
