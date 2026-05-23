@@ -209,7 +209,7 @@ public class LoginView extends javax.swing.JFrame {
                 this.setVisible(false);
                 patientView.setVisible(true);
             } else if (type.equals("doctor")) {
-                DoctorView doctorView = new DoctorView(data);
+                DoctorView doctorView = new DoctorView(data, false, null);
                 this.setVisible(false);
                 doctorView.setVisible(true);
             }
