@@ -251,7 +251,8 @@ public class AppointmentController {
         return new Response("Appointment accepted", Status.OK);
     }
 
-    public static Response completeAppointment(String appointmentId, String doctorId) {
+    public static Response completeAppointment(String appointmentId, String doctorId,
+            String diagnosis, String observations, String treatment, String followUp) {
         Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
         if (appointment == null) {
             return new Response("Appointment not found", Status.NOT_FOUND);
@@ -268,6 +269,10 @@ public class AppointmentController {
         if (appointment.getStatus() != AppointmentStatus.PENDING) {
             return new Response("Appointment must be in PENDING status", Status.BAD_REQUEST);
         }
+        appointment.setDiagnosis(diagnosis);
+        appointment.setObservations(observations);
+        appointment.setRecommendedTreatment(treatment);
+        appointment.setFollowUp(followUp);
         appointment.setStatus(AppointmentStatus.COMPLETED);
         return new Response("Appointment completed", Status.OK);
     }

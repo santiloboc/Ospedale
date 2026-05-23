@@ -3,17 +3,10 @@ package core.views;
 import core.controllers.AppointmentController;
 import core.controllers.DoctorController;
 import core.controllers.HospitalizationController;
+import core.controllers.UserController;
 import core.controllers.utils.Response;
 import core.controllers.utils.Status;
-import core.models.Appointment;
-import core.models.AppointmentStatus;
-import core.models.Doctor;
-import core.models.Hospitalization;
-import core.models.HospitalizationStatus;
-import core.models.Patient;
 import core.models.Specialty;
-import core.models.User;
-import core.models.storage.Storage;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +28,9 @@ public class DoctorView extends javax.swing.JFrame {
         backButton.setEnabled(isAdmin);
         this.setBackground(new Color(0, 0, 0, 0));
         this.setLocationRelativeTo(null);
+        ((DefaultTableModel) prescriptionsTable.getModel()).setRowCount(0);
+        ((DefaultTableModel) appointmentsTable.getModel()).setRowCount(0);
+        ((DefaultTableModel) patientHistoryTable.getModel()).setRowCount(0);
         loadUserData();
         loadAllComboBoxes();
     }
@@ -56,11 +52,11 @@ public class DoctorView extends javax.swing.JFrame {
         patientComboBox.addItem("Select one");
         hospPatientIdComboBox.removeAllItems();
         hospPatientIdComboBox.addItem("Select one");
-        ArrayList<User> users = Storage.getInstance().getUsers();
-        for (int i = 0; i < users.size(); i++) {
-            User u = users.get(i);
-            if (u instanceof Patient) {
-                String item = u.getId() + " - " + u.getFirstname() + " " + u.getLastname();
+        Response patientsResp = UserController.getPatients();
+        if (patientsResp.getStatus() == Status.OK) {
+            ArrayList<HashMap<String, Object>> patients = (ArrayList<HashMap<String, Object>>) patientsResp.getData().get("patients");
+            for (HashMap<String, Object> p : patients) {
+                String item = p.get("id") + " - " + p.get("firstname") + " " + p.get("lastname");
                 patientComboBox.addItem(item);
                 hospPatientIdComboBox.addItem(item);
             }
@@ -82,10 +78,10 @@ public class DoctorView extends javax.swing.JFrame {
             for (HashMap<String, Object> a : appointments) {
                 String id = (String) a.get("id");
                 String status = (String) a.get("status");
-                if (status.equals(AppointmentStatus.REQUESTED.name())) {
+                if (status.equals("REQUESTED")) {
                     acceptAppointmentComboBox.addItem(id);
                 }
-                if (status.equals(AppointmentStatus.PENDING.name())) {
+                if (status.equals("PENDING")) {
                     rescheduleAppointmentComboBox.addItem(id);
                     completeAppointmentComboBox.addItem(id);
                     prescribeAppointmentComboBox.addItem(id);
@@ -95,14 +91,11 @@ public class DoctorView extends javax.swing.JFrame {
 
         hospRequestComboBox.removeAllItems();
         hospRequestComboBox.addItem("Select one");
-        long parsedDoctorId = Long.parseLong(doctorId);
-        ArrayList<Hospitalization> hospitalizations = Storage.getInstance().getHospitalizations();
-        for (int i = 0; i < hospitalizations.size(); i++) {
-            Hospitalization h = hospitalizations.get(i);
-            if (h.getDoctor().getId() == parsedDoctorId) {
-                if (h.getStatus() == HospitalizationStatus.REQUESTED) {
-                    hospRequestComboBox.addItem(h.getId());
-                }
+        Response hospResp = HospitalizationController.getDoctorHospitalizationRequests(doctorId);
+        if (hospResp.getStatus() == Status.OK) {
+            ArrayList<String> hospIds = (ArrayList<String>) hospResp.getData().get("hospitalizations");
+            for (String hId : hospIds) {
+                hospRequestComboBox.addItem(hId);
             }
         }
     }
@@ -1299,16 +1292,16 @@ public class DoctorView extends javax.swing.JFrame {
     private void completeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_completeButtonActionPerformed
         String appointmentId = (String) completeAppointmentComboBox.getSelectedItem();
         String doctorId = String.valueOf(userData.get("id"));
-        Response response = AppointmentController.completeAppointment(appointmentId, doctorId);
+        Response response = AppointmentController.completeAppointment(
+                appointmentId,
+                doctorId,
+                diagnosisTextArea.getText(),
+                observationsTextArea.getText(),
+                treatmentTextArea.getText(),
+                followUpTextArea.getText()
+        );
         JOptionPane.showMessageDialog(this, response.getMessage());
         if (response.getStatus() == Status.OK) {
-            Appointment appointment = Storage.getInstance().getAppointmentById(appointmentId);
-            if (appointment != null) {
-                appointment.setDiagnosis(diagnosisTextArea.getText());
-                appointment.setObservations(observationsTextArea.getText());
-                appointment.setRecommendedTreatment(treatmentTextArea.getText());
-                appointment.setFollowUp(followUpTextArea.getText());
-            }
             diagnosisTextArea.setText("");
             observationsTextArea.setText("");
             treatmentTextArea.setText("");
@@ -1356,38 +1349,44 @@ public class DoctorView extends javax.swing.JFrame {
 
     private void addPrescriptionRowButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addPrescriptionRowButtonActionPerformed
         String appointmentId = (String) prescribeAppointmentComboBox.getSelectedItem();
-        String doctorId = String.valueOf(userData.get("id"));
-        Response response = AppointmentController.prescribeMedication(
-                appointmentId,
-                doctorId,
-                medicationNameTextField.getText(),
-                doseTextField.getText(),
-                frequencyTextField.getText()
-        );
-        JOptionPane.showMessageDialog(this, response.getMessage());
-        if (response.getStatus() == Status.CREATED) {
-            DefaultTableModel model = (DefaultTableModel) prescriptionsTable.getModel();
-            model.addRow(new Object[]{
-                appointmentId,
-                medicationNameTextField.getText(),
-                doseTextField.getText(),
-                administrationRouteTextField.getText(),
-                treatmentDurationTextField.getText(),
-                additionalInstructionsTextField.getText(),
-                frequencyTextField.getText()
-            });
-            medicationNameTextField.setText("");
-            doseTextField.setText("");
-            administrationRouteTextField.setText("");
-            frequencyTextField.setText("");
-            treatmentDurationTextField.setText("");
-            additionalInstructionsTextField.setText("");
-        }
+        DefaultTableModel model = (DefaultTableModel) prescriptionsTable.getModel();
+        model.addRow(new Object[]{
+            appointmentId,
+            medicationNameTextField.getText(),
+            doseTextField.getText(),
+            administrationRouteTextField.getText(),
+            treatmentDurationTextField.getText(),
+            additionalInstructionsTextField.getText(),
+            frequencyTextField.getText()
+        });
+        medicationNameTextField.setText("");
+        doseTextField.setText("");
+        administrationRouteTextField.setText("");
+        frequencyTextField.setText("");
+        treatmentDurationTextField.setText("");
+        additionalInstructionsTextField.setText("");
     }//GEN-LAST:event_addPrescriptionRowButtonActionPerformed
 
     private void prescribeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_prescribeButtonActionPerformed
+        String appointmentId = (String) prescribeAppointmentComboBox.getSelectedItem();
+        String doctorId = String.valueOf(userData.get("id"));
         DefaultTableModel model = (DefaultTableModel) prescriptionsTable.getModel();
-        model.setRowCount(0);
+        boolean allSuccess = true;
+        for (int i = 0; i < model.getRowCount(); i++) {
+            String medication = String.valueOf(model.getValueAt(i, 1));
+            String dose = String.valueOf(model.getValueAt(i, 2));
+            String frequency = String.valueOf(model.getValueAt(i, 6));
+            Response response = AppointmentController.prescribeMedication(
+                    appointmentId, doctorId, medication, dose, frequency);
+            if (response.getStatus() != Status.CREATED) {
+                JOptionPane.showMessageDialog(this, response.getMessage());
+                allSuccess = false;
+            }
+        }
+        if (allSuccess) {
+            JOptionPane.showMessageDialog(this, "Medications prescribed successfully");
+            model.setRowCount(0);
+        }
     }//GEN-LAST:event_prescribeButtonActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

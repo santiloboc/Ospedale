@@ -2,14 +2,11 @@ package core.views;
 
 import core.controllers.DoctorController;
 import core.controllers.PatientController;
+import core.controllers.UserController;
 import core.controllers.utils.Response;
 import core.controllers.utils.Status;
-import core.models.Doctor;
-import core.models.Patient;
-import core.models.Specialty;
-import core.models.User;
-import core.models.storage.Storage;
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.HashMap;
 import javax.swing.JOptionPane;
 
@@ -29,19 +26,30 @@ public class AdminView extends javax.swing.JFrame {
 
     private void loadSpecialtyComboBox() {
         doctorSpecialtyComboBox.removeAllItems();
-        for (Specialty s : Specialty.values()) {
-            doctorSpecialtyComboBox.addItem(s.name());
+        Response resp = UserController.getSpecialtyNames();
+        if (resp.getStatus() == Status.OK) {
+            ArrayList<String> specialties = (ArrayList<String>) resp.getData().get("specialties");
+            for (String s : specialties) {
+                doctorSpecialtyComboBox.addItem(s);
+            }
         }
     }
 
     private void loadUserSelectors() {
         doctorSelectorComboBox.removeAllItems();
         patientSelectorComboBox.removeAllItems();
-        for (User user : Storage.getInstance().getUsers()) {
-            if (user instanceof Doctor) {
-                doctorSelectorComboBox.addItem(user.getId() + " - " + user.getFirstname() + " " + user.getLastname());
-            } else if (user instanceof Patient) {
-                patientSelectorComboBox.addItem(user.getId() + " - " + user.getFirstname() + " " + user.getLastname());
+        Response doctorsResp = UserController.getDoctors();
+        if (doctorsResp.getStatus() == Status.OK) {
+            ArrayList<HashMap<String, Object>> doctors = (ArrayList<HashMap<String, Object>>) doctorsResp.getData().get("doctors");
+            for (HashMap<String, Object> d : doctors) {
+                doctorSelectorComboBox.addItem(d.get("id") + " - " + d.get("firstname") + " " + d.get("lastname"));
+            }
+        }
+        Response patientsResp = UserController.getPatients();
+        if (patientsResp.getStatus() == Status.OK) {
+            ArrayList<HashMap<String, Object>> patients = (ArrayList<HashMap<String, Object>>) patientsResp.getData().get("patients");
+            for (HashMap<String, Object> p : patients) {
+                patientSelectorComboBox.addItem(p.get("id") + " - " + p.get("firstname") + " " + p.get("lastname"));
             }
         }
     }
@@ -671,23 +679,16 @@ public class AdminView extends javax.swing.JFrame {
             return;
         }
         String idStr = selected.split(" - ")[0];
-        long doctorId;
-        try {
-            doctorId = Long.parseLong(idStr);
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Invalid doctor ID");
+        Response resp = UserController.getUserById(idStr);
+        if (resp.getStatus() != Status.OK) {
+            JOptionPane.showMessageDialog(this, resp.getMessage());
             return;
         }
-        User doctorUser = Storage.getInstance().getUserById(doctorId);
-        if (doctorUser == null) {
-            JOptionPane.showMessageDialog(this, "Doctor not found");
-            return;
-        }
-        if (!(doctorUser instanceof Doctor)) {
+        HashMap<String, Object> doctorData = resp.getData();
+        if (!"doctor".equals(doctorData.get("type"))) {
             JOptionPane.showMessageDialog(this, "Selected user is not a doctor");
             return;
         }
-        HashMap<String, Object> doctorData = doctorUser.serialize();
         DoctorView doctorView = new DoctorView(doctorData, true, userData);
         this.setVisible(false);
         doctorView.setVisible(true);
@@ -700,23 +701,16 @@ public class AdminView extends javax.swing.JFrame {
             return;
         }
         String idStr = selected.split(" - ")[0];
-        long patientId;
-        try {
-            patientId = Long.parseLong(idStr);
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Invalid patient ID");
+        Response resp = UserController.getUserById(idStr);
+        if (resp.getStatus() != Status.OK) {
+            JOptionPane.showMessageDialog(this, resp.getMessage());
             return;
         }
-        User patientUser = Storage.getInstance().getUserById(patientId);
-        if (patientUser == null) {
-            JOptionPane.showMessageDialog(this, "Patient not found");
-            return;
-        }
-        if (!(patientUser instanceof Patient)) {
+        HashMap<String, Object> patientData = resp.getData();
+        if (!"patient".equals(patientData.get("type"))) {
             JOptionPane.showMessageDialog(this, "Selected user is not a patient");
             return;
         }
-        HashMap<String, Object> patientData = patientUser.serialize();
         PatientView patientView = new PatientView(patientData, true, userData);
         this.setVisible(false);
         patientView.setVisible(true);

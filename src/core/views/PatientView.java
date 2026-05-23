@@ -3,13 +3,9 @@ package core.views;
 import core.controllers.AppointmentController;
 import core.controllers.HospitalizationController;
 import core.controllers.PatientController;
+import core.controllers.UserController;
 import core.controllers.utils.Response;
 import core.controllers.utils.Status;
-import core.models.Doctor;
-import core.models.RoomType;
-import core.models.Specialty;
-import core.models.User;
-import core.models.storage.Storage;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,11 +51,11 @@ public class PatientView extends javax.swing.JFrame {
     private void loadDoctorComboBoxes() {
         hospDoctorComboBox.removeAllItems();
         hospDoctorComboBox.addItem("Select one");
-        ArrayList<User> users = Storage.getInstance().getUsers();
-        for (int i = 0; i < users.size(); i++) {
-            User u = users.get(i);
-            if (u instanceof Doctor) {
-                hospDoctorComboBox.addItem(u.getId() + " - " + u.getFirstname() + " " + u.getLastname());
+        Response resp = UserController.getDoctors();
+        if (resp.getStatus() == Status.OK) {
+            ArrayList<HashMap<String, Object>> doctors = (ArrayList<HashMap<String, Object>>) resp.getData().get("doctors");
+            for (HashMap<String, Object> d : doctors) {
+                hospDoctorComboBox.addItem(d.get("id") + " - " + d.get("firstname") + " " + d.get("lastname"));
             }
         }
     }
@@ -67,8 +63,12 @@ public class PatientView extends javax.swing.JFrame {
     private void loadRoomTypeComboBox() {
         hospRoomTypeComboBox.removeAllItems();
         hospRoomTypeComboBox.addItem("Select one");
-        for (RoomType rt : RoomType.values()) {
-            hospRoomTypeComboBox.addItem(rt.name());
+        Response resp = UserController.getRoomTypeNames();
+        if (resp.getStatus() == Status.OK) {
+            ArrayList<String> roomTypes = (ArrayList<String>) resp.getData().get("roomTypes");
+            for (String rt : roomTypes) {
+                hospRoomTypeComboBox.addItem(rt);
+            }
         }
     }
 
@@ -884,8 +884,12 @@ public class PatientView extends javax.swing.JFrame {
         }
         specialtyOrDoctorComboBox.removeAllItems();
         specialtyOrDoctorComboBox.addItem("Select one");
-        for (Specialty spec : Specialty.values()) {
-            specialtyOrDoctorComboBox.addItem(spec.name());
+        Response resp = UserController.getSpecialtyNames();
+        if (resp.getStatus() == Status.OK) {
+            ArrayList<String> specialties = (ArrayList<String>) resp.getData().get("specialties");
+            for (String s : specialties) {
+                specialtyOrDoctorComboBox.addItem(s);
+            }
         }
     }//GEN-LAST:event_specialtyRadioButtonActionPerformed
 
@@ -895,11 +899,11 @@ public class PatientView extends javax.swing.JFrame {
         }
         specialtyOrDoctorComboBox.removeAllItems();
         specialtyOrDoctorComboBox.addItem("Select one");
-        ArrayList<User> users = Storage.getInstance().getUsers();
-        for (int i = 0; i < users.size(); i++) {
-            User u = users.get(i);
-            if (u instanceof Doctor) {
-                specialtyOrDoctorComboBox.addItem(u.getId() + " - " + u.getFirstname() + " " + u.getLastname());
+        Response resp = UserController.getDoctors();
+        if (resp.getStatus() == Status.OK) {
+            ArrayList<HashMap<String, Object>> doctors = (ArrayList<HashMap<String, Object>>) resp.getData().get("doctors");
+            for (HashMap<String, Object> d : doctors) {
+                specialtyOrDoctorComboBox.addItem(d.get("id") + " - " + d.get("firstname") + " " + d.get("lastname"));
             }
         }
     }//GEN-LAST:event_doctorRadioButtonActionPerformed
@@ -913,9 +917,12 @@ public class PatientView extends javax.swing.JFrame {
         if (doctorRadioButton.isSelected()) {
             String[] parts = selected.split(" - ");
             doctorId = parts[0];
-            User doctorUser = Storage.getInstance().getUserById(Long.parseLong(doctorId));
-            if (doctorUser instanceof Doctor) {
-                specialty = ((Doctor) doctorUser).getSpecialty().name();
+            Response userResp = UserController.getUserById(doctorId);
+            if (userResp.getStatus() == Status.OK) {
+                HashMap<String, Object> doctorData = userResp.getData();
+                if ("doctor".equals(doctorData.get("type"))) {
+                    specialty = (String) doctorData.get("specialty");
+                }
             }
         } else if (specialtyRadioButton.isSelected()) {
             specialty = selected;

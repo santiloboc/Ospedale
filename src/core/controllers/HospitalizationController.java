@@ -17,6 +17,8 @@ import core.models.User;
 import core.models.storage.Storage;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  *
@@ -131,6 +133,30 @@ public class HospitalizationController {
 
         hospitalization.setStatus(HospitalizationStatus.CANCELED);
         return new Response("Hospitalization canceled", Status.OK);
+    }
+
+    public static Response getDoctorHospitalizationRequests(String doctorId) {
+        try {
+            long parsedDoctorId;
+            try {
+                parsedDoctorId = Long.parseLong(doctorId);
+            } catch (NumberFormatException e) {
+                return new Response("Doctor ID must be a number", Status.BAD_REQUEST);
+            }
+            ArrayList<Hospitalization> all = Storage.getInstance().getHospitalizations();
+            ArrayList<String> ids = new ArrayList<>();
+            for (int i = 0; i < all.size(); i++) {
+                Hospitalization h = all.get(i);
+                if (h.getDoctor().getId() == parsedDoctorId && h.getStatus() == HospitalizationStatus.REQUESTED) {
+                    ids.add(h.getId());
+                }
+            }
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("hospitalizations", ids);
+            return new Response("Hospitalization requests retrieved", Status.OK, data);
+        } catch (Exception ex) {
+            return new Response("Unexpected error", Status.INTERNAL_SERVER_ERROR);
+        }
     }
 
     public static Response hospitalizeFromAppointment(String appointmentId, String doctorId,
